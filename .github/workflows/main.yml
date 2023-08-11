@@ -33,7 +33,7 @@ jobs:
         run: |
           if [ -f "results.sarif" ]; then
             echo "file_exists=true" >> $GITHUB_ENV
-          else
+          else 
             echo "file_exists=false" >> $GITHUB_ENV
           fi
       # Push the results into GitHub Code Scanning tab
