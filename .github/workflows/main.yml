@@ -1,0 +1,44 @@
+name: "T-Sec Xcheck"
+env:
+  SERVER_URL: "http://1.13.0.211:8080"
+  ACTION_TYPE: "SSCA"
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout_Actions
+        uses: actions/checkout@v3
+      - name: Install T-Sec Xcheck cli
+        run: |
+          echo "current pwd: $(pwd)"
+          wget -q $SERVER_URL/static/cli/install.sh -O - | /bin/bash
+      - name: Code scan
+        run: |
+          xcheck-cli --server $SERVER_URL --token ${{ secrets.XCHECK_TOKEN }}  --type $ACTION_TYPE project run-devops --wait --all --format detail --code $(pwd) --output detail_result.json $GITHUB_REPOSITORY > output.txt
+          echo "$(ls)"
+          first_char=$(cut -c 1 output.txt)
+          if [ "$first_char" = "{" ]; then
+            head -c 800 output.txt
+          else
+            cat output.txt
+            exit 1
+          fi
+      - name: Format Result
+        run: xcheck-cli sarif --output results.sarif detail_result.json
+      - name: Check if file exists
+        run: |
+          if [ -f "results.sarif" ]; then
+            echo "file_exists=true" >> $GITHUB_ENV
+          else
+            echo "file_exists=false" >> $GITHUB_ENV
+          fi
+      # Push the results into GitHub Code Scanning tab
+      - name: Upload result to GitHub Code Scanning
+        if: env.file_exists == 'true'
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results.sarif
